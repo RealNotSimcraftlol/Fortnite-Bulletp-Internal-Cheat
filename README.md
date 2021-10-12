@@ -1,6 +1,8 @@
 # Fortnite-Bulletp-Internal
 A working vehicle Bullettp internal, will be always updated to latest fn update!
 
+my old github got termed LMAO
+
 ## If i see you selling this, i make you famous (in a bad way)
 
 To retards who think i stole credits for bullettp: lmao i didnt stole credits, i didnt pasted it from anywhere, i just copyed the silent aimbot code and removed the vis check
