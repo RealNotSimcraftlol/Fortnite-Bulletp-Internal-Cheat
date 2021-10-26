@@ -29,7 +29,7 @@ namespace StaticOffsets {
 	uintptr_t RelativeRotation = 0x128;
 	uintptr_t PlayerState = 0x240;
 	uintptr_t Mesh = 0x280;
-	uintptr_t TeamIndex = 0xED8;
+	uintptr_t TeamIndex = 0xEE0;
 }
 /*
 struct AFortWeaponn {
