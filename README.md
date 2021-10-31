@@ -31,6 +31,7 @@ Fixed FOV Circle and silent aimbot lol
 > Exploits
 
  - No Spread
+ - Aim While Jumping
  - Vehicle BulletTP
  - Vehicle Boost (Speedhack)
 
