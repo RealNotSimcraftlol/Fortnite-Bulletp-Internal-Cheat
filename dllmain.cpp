@@ -694,21 +694,6 @@ bool EntitiyLoop()
 						}
 					}
 
-					if (Settings::RapidFire) {
-
-						uintptr_t CurrentWeapon = *(uintptr_t*)(LocalPawn + 0x600);
-						if (CurrentWeapon) {
-							float a = read<float>(CurrentWeapon + StaticOffsets::LastFireTime);
-							float b = read<float>(CurrentWeapon + StaticOffsets::LastFireTimeVerified);
-							write<float>(CurrentWeapon + StaticOffsets::LastFireTime, (a + b - Settings::RapidFireValue));
-						}
-					}
-
-					if (Settings::FirstCamera) {
-						SDK::Classes::APlayerCameraManager::FirstPerson(1);
-						Settings::FirstCamera = false;
-					}
-
 					if (Settings::AimWhileJumping) {
 						*(bool*)(LocalPawn + StaticOffsets::bADSWhileNotOnGround) = true;
 					}
@@ -1264,6 +1249,8 @@ VOID MenuAndDestroy(ImGuiWindow& window) {
 					ImGui::Text(xorstr("You can instant revive your team"));
 					ImGui::EndTooltip();
 				}
+				
+				ImGui::Checkbox(xorstr("Aim While Jumping"), &Settings::AimWhileJumping);
 
 				// bullettp
 				ImGui::Checkbox(xorstr("BulletTP [Only in vehicle!]"), &Settings::Bullettp);
