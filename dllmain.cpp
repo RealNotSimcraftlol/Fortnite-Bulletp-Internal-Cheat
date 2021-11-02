@@ -335,27 +335,27 @@ Vector3 head2, neck, pelvis, chest, leftShoulder, rightShoulder, leftElbow, righ
 bool GetAllBones(uintptr_t CurrentActor) {
 	Vector3 chesti, chestatright;
 
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 66, &head2);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 65, &neck);
+        SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 98, &head2); 
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 66, &neck); 
 	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 2, &pelvis);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 36, &chesti);
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 37, &chesti); 
 	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 8, &chestatright);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 9, &leftShoulder);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 37, &rightShoulder);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 10, &leftElbow);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 38, &rightElbow);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 11, &leftHand);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 39, &rightHand);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 67, &leftLeg);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 74, &rightLeg);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 73, &leftThigh);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 80, &rightThigh);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 68, &leftFoot);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 75, &rightFoot);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 71, &leftFeet);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 78, &rightFeet);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 72, &leftFeetFinger);
-	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 79, &rightFeetFinger);
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 93, &leftShoulder); 
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 9, &rightShoulder);
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 94, &leftElbow); 
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 10, &rightElbow); 
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 100, &leftHand); 
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 99, &rightHand); 
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 76, &leftLeg); 
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 69, &rightLeg); 
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 82, &leftThigh); 
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 75, &rightThigh); 
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 78, &leftFoot); 
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 71, &rightFoot); 
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 85, &leftFeet);
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 84, &rightFeet); 
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 81, &leftFeetFinger);  
+	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 74, &rightFeetFinger); 
 
 
 	SDK::Classes::AController::WorldToScreen(head2, &head2);
