@@ -30,7 +30,7 @@ To retards who think i stole credits for bullettp: lmao i didnt stole credits, i
 
 > Exploits
 
-  ~~- No Spread
+  ~~No Spread
  - Aim While Jumping
  - Vehicle BulletTP
  - Vehicle Boost (Speedhack)
@@ -42,6 +42,6 @@ To retards who think i stole credits for bullettp: lmao i didnt stole credits, i
  - Rainbow Mode (rgb visuals)
 
 
-Planing to add more exploits like vehicle fly and fov changer
+Added Carfly and FOV Changer soon
 
 need help dm me! NotSimcraftLOL#5175
