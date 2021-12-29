@@ -30,7 +30,7 @@ To retards who think i stole credits for bullettp: lmao i didnt stole credits, i
 
 > Exploits
 
-  ~~No Spread
+ - No Spread (Broken at the moment)
  - Aim While Jumping
  - Vehicle BulletTP
  - Vehicle Boost (Speedhack)
