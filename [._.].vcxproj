@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="custom_runtimes.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="imgui\imgui.cpp" />
     <ClCompile Include="imgui\imgui_draw.cpp" />
@@ -26,8 +27,7 @@
     <ClCompile Include="vector3d.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="coolbackground.h" />
-    <ClInclude Include="detours.h" />
+    <ClInclude Include="custom_runtimes.h" />
     <ClInclude Include="imgui\imgui.h" />
     <ClInclude Include="imgui\imgui_impl_dx11.h" />
     <ClInclude Include="imgui\imgui_internal.h" />

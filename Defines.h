@@ -49,6 +49,7 @@ namespace Settings
 	static float RapidFireValue = 0.001f;
 	static bool fov360 = 0;
 	static bool FirstCamera = 0;
+	static bool PlayerFly = 0;
 
 	//Misc
 	static bool Gaybow = 1;

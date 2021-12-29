@@ -19,9 +19,6 @@
     <ClInclude Include="xor.h">
       <Filter>Header Files\utilities</Filter>
     </ClInclude>
-    <ClInclude Include="coolbackground.h">
-      <Filter>Header Files\utilities</Filter>
-    </ClInclude>
     <ClInclude Include="imgui\imgui_impl_dx11.h">
       <Filter>imgui</Filter>
     </ClInclude>
@@ -43,7 +40,9 @@
     <ClInclude Include="Loot.h">
       <Filter>Loops</Filter>
     </ClInclude>
-    <ClInclude Include="detours.h" />
+    <ClInclude Include="custom_runtimes.h">
+      <Filter>Header Files\utilities</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Header Files">
@@ -54,9 +53,6 @@
     </Filter>
     <Filter Include="Header Files\utilities">
       <UniqueIdentifier>{e64eea19-95d5-44e4-8ba6-e35f56748c52}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\utilities\BasicChecks">
-      <UniqueIdentifier>{6eb6ca10-2b2d-44b4-8d6a-d14e2bc73b24}</UniqueIdentifier>
     </Filter>
     <Filter Include="Memory">
       <UniqueIdentifier>{31d9e1ba-393d-490a-993f-d6aff1e34b6c}</UniqueIdentifier>
@@ -83,6 +79,9 @@
     </ClCompile>
     <ClCompile Include="imgui\imgui_draw.cpp">
       <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="custom_runtimes.cpp">
+      <Filter>Header Files\utilities</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

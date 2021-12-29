@@ -443,19 +443,19 @@ namespace SDK
 		public:
 			static float GetFOVAngle(uintptr_t PlayerCameraManager)
 			{
-				auto GetFOVAngle = reinterpret_cast<float(*)(UINT64, char*)>(*(ULONG_PTR*)(*(ULONG_PTR*)PlayerCameraManager + 0x6D0));
+				auto GetFOVAngle = reinterpret_cast<float(*)(UINT64, char*)>(*(ULONG_PTR*)(*(ULONG_PTR*)PlayerCameraManager + 0x740));
 				return SpoofCall(GetFOVAngle, (ULONG_PTR)PlayerCameraManager, (char*)0);
 			}
 
 			static Vector3 GetCameraLocation(uintptr_t PlayerCameraManager)
 			{
-				auto GetCameraLocation = reinterpret_cast<Vector3(*)(UINT64, char*)>(*(ULONG_PTR*)(*(ULONG_PTR*)PlayerCameraManager + 0x718));
+				auto GetCameraLocation = reinterpret_cast<Vector3(*)(UINT64, char*)>(*(ULONG_PTR*)(*(ULONG_PTR*)PlayerCameraManager + 0x788));
 				return SpoofCall(GetCameraLocation, (ULONG_PTR)PlayerCameraManager, (char*)0);
 			}
 
 			static Vector3 GetCameraRotation(uintptr_t PlayerCameraManager)
 			{
-				auto GetCameraRotation = reinterpret_cast<Vector3(*)(UINT64, char*)>(*(ULONG_PTR*)(*(ULONG_PTR*)PlayerCameraManager + 0x710));
+				auto GetCameraRotation = reinterpret_cast<Vector3(*)(UINT64, char*)>(*(ULONG_PTR*)(*(ULONG_PTR*)PlayerCameraManager + 0x780));
 				return SpoofCall(GetCameraRotation, (ULONG_PTR)PlayerCameraManager, (char*)0);
 			}
 
@@ -483,7 +483,7 @@ namespace SDK
 					uintptr_t VTable = *(uintptr_t*)PlayerController;
 					if (!VTable)  return false;
 
-					pGetPlayerViewPoint = *(uintptr_t*)(VTable + 0x708);
+					pGetPlayerViewPoint = *(uintptr_t*)(VTable + 0x788);
 					if (!pGetPlayerViewPoint)  return false;
 				}
 
@@ -588,9 +588,10 @@ namespace SDK
 				return true;
 			}
 
+
 			static void SetControlRotation(Vector3 NewRotation, bool bResetCamera = false)
 			{
-				auto SetControlRotation_ = (*(void(__fastcall**)(uintptr_t Controller, Vector3 NewRotation, bool bResetCamera))(*(uintptr_t*)PlayerController + 0x688));
+				auto SetControlRotation_ = (*(void(__fastcall**)(uintptr_t Controller, Vector3 NewRotation, bool bResetCamera))(*(uintptr_t*)PlayerController + 0x6F8));
 				SpoofCall(SetControlRotation_, PlayerController, NewRotation, bResetCamera);
 			}
 		};
@@ -598,6 +599,72 @@ namespace SDK
 
 	namespace Utils
 	{
+		static ImVec2 ProjectWorldLocationToScreen(Vector3 world_location)
+		{
+			if (!FOVAngle) return  { 0, 0 };
+			ImVec2 screen_location;
+			float delta[3];
+			float sp = 0, cp = 0, sy = 0, cy = 0, sr = 0, cr = 0;
+			float axisx[3];
+			float axisy[3];
+			float axisz[3];
+			float transformed[3];
+
+			screen_location.x = 0;
+			screen_location.y = 0;
+
+			delta[0] = world_location.x - CamLoc.x;
+			delta[1] = world_location.y - CamLoc.y;
+			delta[2] = world_location.z - CamLoc.z;
+
+			sp = SpoofCall(sinf, float(CamRot.x * M_PI / 180));
+			cp = SpoofCall(cosf, float(CamRot.x * M_PI / 180));
+			sy = SpoofCall(sinf, float(CamRot.y * M_PI / 180));
+			cy = SpoofCall(cosf, float(CamRot.y * M_PI / 180));
+			sr = SpoofCall(sinf, float(CamRot.z * M_PI / 180));
+			cr = SpoofCall(cosf, float(CamRot.z * M_PI / 180));
+
+			axisx[0] = cp * cy;
+			axisx[1] = cp * sy;
+			axisx[2] = sp;
+
+			axisy[0] = sr * sp * cy - cr * sy;
+			axisy[1] = sr * sp * sy + cr * cy;
+			axisy[2] = -sr * cp;
+
+			axisz[0] = -(cr * sp * cy + sr * sy);
+			axisz[1] = cy * sr - cr * sp * sy;
+			axisz[2] = cr * cp;
+
+			transformed[0] = delta[0] * axisy[0] + delta[1] * axisy[1] + delta[2] * axisy[2];
+			transformed[1] = delta[0] * axisz[0] + delta[1] * axisz[1] + delta[2] * axisz[2];
+			transformed[2] = delta[0] * axisx[0] + delta[1] * axisx[1] + delta[2] * axisx[2];
+
+			if (transformed[2] < 1)
+				transformed[2] = 1;
+
+			if (transformed[2] / 100 > 0)
+			{
+				float tmpx = 0, tmpy = 0;
+
+				tmpx = (float)(Renderer_Defines::Width / 2);
+				tmpy = (float)(Renderer_Defines::Height / 2);
+
+				screen_location.x = tmpx + transformed[0] * tmpx / SpoofCall(tanf, float(FOVAngle * M_PI / 360)) / transformed[2];
+				screen_location.y = tmpy - transformed[1] * tmpx / SpoofCall(tanf, float(FOVAngle * M_PI / 360)) / transformed[2];
+
+				return screen_location;
+			}
+
+			return { 0, 0 };
+		}
+
+		ImVec2 WorldToScreen2(uintptr_t PlayerController, Vector3 WorldLocation)
+		{
+			if (!valid_pointer(PlayerController)) return { 0, 0 };
+			return ProjectWorldLocationToScreen(WorldLocation);
+		}
+
 		double GetCrossDistance(double x1, double y1, double x2, double y2)
 		{
 			return SpoofRuntime::sqrtf_(SpoofRuntime::powf_((float)(x1 - x2), (float)2) + SpoofRuntime::powf_((float)(y1 - y2), (float)2));
@@ -622,7 +689,7 @@ namespace SDK
 
 		bool CheckInScreen(uintptr_t CurrentActor, int Width, int Height) {
 			Vector3 Pos;
-			Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 66, &Pos);
+			Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 98, &Pos);
 			Classes::AController::WorldToScreen(Pos, &Pos);
 			if (CurrentActor)
 			{

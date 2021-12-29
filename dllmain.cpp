@@ -1,13 +1,14 @@
 #include "SDK.h"
 #include "Loot.h"
-#include "detours.h"
-
+#include "custom_runtimes.h"
 
 typedef int (WINAPI* LPFN_MBA)(DWORD);
-static LPFN_MBA NtGetAsyncKeyState;
+static LPFN_MBA NiggerKeyState;
 
 // ye ye feel free to paste
-// Fixed Silent
+// Updated to Chapter 3
+// Added Better SpeedHack
+// Added Better SilentAim and Bulletp
 
 bool ShowMenu = true;
 
@@ -56,122 +57,102 @@ void ColorChange()
 	ImGui::ColorConvertHSVtoRGB(Color[0], Color[1], Color[2], color_red, color_green, color_blue);
 }
 
-// Speedhack
-#pragma comment(lib, "detours.lib")
+// Better Speedhack
+namespace Speed {
 
-template<class DataType>
-class Monke {
-	DataType time_offset;
-	DataType time_last_update;
+	template<class SpeedT>
+	class MainSpeed {
+		SpeedT time_offset;
+		SpeedT time_last_update;
 
-	double speed_;
+		double speed_;
 
-public:
-	Monke(DataType currentRealTime, double initialSpeed) {
-		time_offset = currentRealTime;
-		time_last_update = currentRealTime;
+	public:
+		MainSpeed(SpeedT currentRealTime, double initialSpeed) {
+			time_offset = currentRealTime;
+			time_last_update = currentRealTime;
+			speed_ = initialSpeed;
+		}
 
-		speed_ = initialSpeed;
+		SpeedT getSpeed(SpeedT currentRealTime) {
+			SpeedT difference = currentRealTime - time_last_update;
+			return (SpeedT)(speed_ * difference) + time_offset;
+		}
+
+		void setSpeed(SpeedT currentRealTime, double speed) {
+			time_offset = getSpeed(currentRealTime);
+			time_last_update = currentRealTime;
+			speed_ = speed;
+		}
+
+
+	};
+
+	typedef DWORD(WINAPI* NtGetTickCount_)(void);
+	typedef ULONGLONG(WINAPI* NtGetTickCount64_)(void);
+	typedef DWORD(WINAPI* NtTimeGetTime_)(void);
+	typedef BOOL(WINAPI* NtQueryPerformanceCounter_)(LARGE_INTEGER* lpPerformanceCount);
+
+	static NtGetTickCount_ NtGetTickCount_original;
+	static NtGetTickCount64_ NtGetTickCount64_original;
+	static NtTimeGetTime_ NttimeGetTime_original;
+	static NtQueryPerformanceCounter_ NtQueryPerformanceCounter_original;
+
+	static MainSpeed<DWORD> g_MainSpeed(0, 0);
+	static MainSpeed<ULONGLONG> g_MainSpeed64(0, 0);
+	static MainSpeed<LONGLONG> g_MainSpeed_Long(0, 0);
+
+
+	static DWORD WINAPI GetTickCountHook(void) {
+		return g_MainSpeed.getSpeed(NtGetTickCount_original());
 	}
 
-	void setSpeed(DataType currentRealTime, double speed) {
-		time_offset = getCurrentTime(currentRealTime);
-		time_last_update = currentRealTime;
-
-		speed_ = speed;
+	static ULONGLONG WINAPI GetTickCount64Hook(void) {
+		return g_MainSpeed64.getSpeed(NtGetTickCount64_original());
 	}
 
-	DataType getCurrentTime(DataType currentRealTime) {
-		DataType difference = currentRealTime - time_last_update;
-
-		return (DataType)(speed_ * difference) + time_offset;
+	static BOOL WINAPI QueryPerformanceCounterHook(LARGE_INTEGER* lpPerformanceCount) {
+		LARGE_INTEGER PerformanceCount;
+		BOOL ReturnValue = NtQueryPerformanceCounter_original(&PerformanceCount);
+		lpPerformanceCount->QuadPart = g_MainSpeed_Long.getSpeed(PerformanceCount.QuadPart);
+		return ReturnValue;
 	}
-};
 
-typedef DWORD(WINAPI* GetTickCountType)(void);
-typedef ULONGLONG(WINAPI* GetTickCount64Type)(void);
+	static VOID InitSpeedHack() {
 
-typedef BOOL(WINAPI* QueryPerformanceCounterType)(LARGE_INTEGER* lpPerformanceCount);
+		NtGetTickCount_ NtGetTickCount = (NtGetTickCount_)SpoofCall(GetProcAddress, (HMODULE)crt::GetBaseAddress(xorstr(L"Kernel32.dll")), (LPCSTR)xorstr("GetTickCount"));
+		NtGetTickCount64_ NtGetTickCount64 = (NtGetTickCount64_)SpoofCall(GetProcAddress, (HMODULE)crt::GetBaseAddress(xorstr(L"Kernel32.dll")), (LPCSTR)xorstr("GetTickCount64"));
+		NtQueryPerformanceCounter_ NtQueryPerformanceCounter = (NtQueryPerformanceCounter_)SpoofCall(GetProcAddress, (HMODULE)crt::GetBaseAddress(xorstr(L"Kernel32.dll")), (LPCSTR)xorstr("QueryPerformanceCounter"));
+		LARGE_INTEGER lpPerformanceCount;
 
-GetTickCountType   g_GetTickCountOriginal;
-GetTickCount64Type g_GetTickCount64Original;
-GetTickCountType   g_TimeGetTimeOriginal;  
+		DWORD MainSpeed_CurrentRealTime = NtGetTickCount();
+		ULONGLONG MainSpeed64_CurrentRealTime = NtGetTickCount64();
 
-QueryPerformanceCounterType g_QueryPerformanceCounterOriginal;
+		g_MainSpeed = MainSpeed<DWORD>(MainSpeed_CurrentRealTime, 1.0);
+		g_MainSpeed64 = MainSpeed<ULONGLONG>(MainSpeed64_CurrentRealTime, 1.0);
+		NtQueryPerformanceCounter(&lpPerformanceCount);
+		g_MainSpeed_Long = MainSpeed<LONGLONG>(lpPerformanceCount.QuadPart, 1.0);
 
 
-const double kInitialSpeed = 1.0;
+		NtTimeGetTime_ NtTimeGetTime = (NtTimeGetTime_)SpoofCall(GetProcAddress, (HMODULE)crt::GetBaseAddress(xorstr(L"Winmm.dll")), (LPCSTR)xorstr("timeGetTime"));
 
-Monke<DWORD>     g_Monke(GetTickCount(), kInitialSpeed);
-Monke<ULONGLONG> g_MonkeULL(GetTickCount64(), kInitialSpeed);
-Monke<LONGLONG>  g_MonkeLL(0, kInitialSpeed);
 
-DWORD     WINAPI GetTickCountHacked(void);
-ULONGLONG WINAPI GetTickCount64Hacked(void);
+		HookHelper::InsertHook((uintptr_t)NtGetTickCount, (uintptr_t)GetTickCountHook, (uintptr_t)&NtGetTickCount_original);
+		HookHelper::InsertHook((uintptr_t)NtGetTickCount64, (uintptr_t)GetTickCount64Hook, (uintptr_t)&NtGetTickCount64_original);
+		HookHelper::InsertHook((uintptr_t)NtTimeGetTime, (uintptr_t)GetTickCountHook, (uintptr_t)&NttimeGetTime_original);
+		HookHelper::InsertHook((uintptr_t)NtQueryPerformanceCounter, (uintptr_t)QueryPerformanceCounterHook, (uintptr_t)&NtQueryPerformanceCounter_original);
+	}
 
-BOOL      WINAPI QueryPerformanceCounterHacked(LARGE_INTEGER* lpPerformanceCount);
-
-DWORD     WINAPI KeysThread(LPVOID lpThreadParameter);
-
-// Dont forget to call this at the start of the cheat or it wont work!
-
-void Gay()
-{
-	HMODULE kernel32 = GetModuleHandleA(xorstr("Kernel32.dll"));
-	HMODULE winmm = GetModuleHandleA(xorstr("Winmm.dll"));
-
-	g_GetTickCountOriginal = (GetTickCountType)GetProcAddress(kernel32, xorstr("GetTickCount"));
-	g_GetTickCount64Original = (GetTickCount64Type)GetProcAddress(kernel32, xorstr("GetTickCount64"));
-
-	g_TimeGetTimeOriginal = (GetTickCountType)GetProcAddress(winmm, xorstr("timeGetTime"));
-
-	g_QueryPerformanceCounterOriginal = (QueryPerformanceCounterType)GetProcAddress(kernel32, xorstr("QueryPerformanceCounter"));
-
-	LARGE_INTEGER performanceCounter;
-	g_QueryPerformanceCounterOriginal(&performanceCounter);
-
-	g_MonkeLL = Monke<LONGLONG>(performanceCounter.QuadPart, kInitialSpeed);
-
-	DetourTransactionBegin();
-
-	DetourAttach((PVOID*)&g_GetTickCountOriginal, (PVOID)GetTickCountHacked);
-	DetourAttach((PVOID*)&g_GetTickCount64Original, (PVOID)GetTickCount64Hacked);
-
-	DetourAttach((PVOID*)&g_TimeGetTimeOriginal, (PVOID)GetTickCountHacked);
-
-	DetourAttach((PVOID*)&g_QueryPerformanceCounterOriginal, (PVOID)QueryPerformanceCounterHacked);
-
-	DetourTransactionCommit();
+	static BOOL SpeedHack(double speed) {
+		g_MainSpeed.setSpeed(NtGetTickCount_original(), speed);
+		g_MainSpeed64.setSpeed(NtGetTickCount64_original(), speed);
+		LARGE_INTEGER lpPerformanceCount;
+		NtQueryPerformanceCounter_original(&lpPerformanceCount);
+		g_MainSpeed_Long.setSpeed(lpPerformanceCount.QuadPart, speed);
+		return TRUE;
+	}
 }
 
-void setAllToSpeed(double speed) {
-	g_Monke.setSpeed(g_GetTickCountOriginal(), speed);
-
-	g_MonkeULL.setSpeed(g_GetTickCount64Original(), speed);
-
-	LARGE_INTEGER performanceCounter;
-	g_QueryPerformanceCounterOriginal(&performanceCounter);
-
-	g_MonkeLL.setSpeed(performanceCounter.QuadPart, speed);
-}
-
-DWORD WINAPI GetTickCountHacked(void) {
-	return g_Monke.getCurrentTime(g_GetTickCountOriginal());
-}
-
-ULONGLONG WINAPI GetTickCount64Hacked(void) {
-	return g_MonkeULL.getCurrentTime(g_GetTickCount64Original());
-}
-
-BOOL WINAPI QueryPerformanceCounterHacked(LARGE_INTEGER* lpPerformanceCount) {
-	LARGE_INTEGER performanceCounter;
-
-	BOOL result = g_QueryPerformanceCounterOriginal(&performanceCounter);
-
-	lpPerformanceCount->QuadPart = g_MonkeLL.getCurrentTime(performanceCounter.QuadPart);
-
-	return result;
-}
 
 // Watermark and Speed
 
@@ -194,6 +175,15 @@ void DrawWaterMark(ImGuiWindow& windowshit, std::string str, ImVec2 loc, ImU32 c
 	windowshit.DrawList->AddText(ImVec2(loc.x - minx, loc.y - miny), colr, str.c_str());
 }
 
+
+namespace HookFunctions {
+	bool Init(bool NoSpread, bool CalcShot, bool Speed);
+	bool NoSpreadInitialized = false;
+	bool CalcShotInitialized = false;
+	bool SpeedInitialized = false;
+}
+
+
 // Dont forget to call this at the start of the cheat or it wont work!
 
 void gaybow(ImGuiWindow& window) {
@@ -201,23 +191,21 @@ void gaybow(ImGuiWindow& window) {
 	DrawWaterMark(window, "Text or Discord invite lol", ImVec2(50, 100), RGB, false);
 	//DrawWaterMark(window, "Second text", ImVec2(50, 120), FpsColor, false);
 
-	if (Settings::Speed && NtGetAsyncKeyState(VK_SHIFT)) {
-		setAllToSpeed(Settings::SpeedValue);
-	}
-	else
-	{
-		setAllToSpeed(1.0);
+	if (Settings::Speed) {
+		if (NiggerKeyState(VK_SHIFT)) {
+			if (!HookFunctions::SpeedInitialized) {
+				HookFunctions::Init(false, false, true);
+			}
+			Speed::SpeedHack(Settings::SpeedValue);
+		}
+		else {
+			Speed::SpeedHack(1.0);
+		}
 	}
 }
 
 
 PVOID TargetPawn = nullptr;
-
-namespace HookFunctions {
-	bool Init(bool NoSpread, bool CalcShot);
-	bool NoSpreadInitialized = false;
-	bool CalcShotInitialized = false;
-}
 
 
 ID3D11Device* device = nullptr;
@@ -236,13 +224,6 @@ inline present_fn present_original{ };
 
 typedef HRESULT(*resize_fn)(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT);
 inline resize_fn resize_original{ };
-
-
-
-//HRESULT(*present_original)(IDXGISwapChain* swapChain, UINT syncInterval, UINT flags) = nullptr;
-//HRESULT(*resize_original)(IDXGISwapChain* swapChain, UINT bufferCount, UINT width, UINT height, DXGI_FORMAT newFormat, UINT swapChainFlags) = nullptr;
-
-
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -280,7 +261,7 @@ void DrawCorneredBox(int X, int Y, int W, int H, ImColor color, int thickness) {
 
 bool IsAiming()
 {
-	return NtGetAsyncKeyState(VK_RBUTTON);
+	return NiggerKeyState(VK_RBUTTON);
 }
 
 auto GetSyscallIndex(std::string ModuleName, std::string SyscallFunctionName, void* Function) -> bool
@@ -335,7 +316,7 @@ Vector3 head2, neck, pelvis, chest, leftShoulder, rightShoulder, leftElbow, righ
 bool GetAllBones(uintptr_t CurrentActor) {
 	Vector3 chesti, chestatright;
 
-        SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 98, &head2); 
+    SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 98, &head2); 
 	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 66, &neck); 
 	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 2, &pelvis);
 	SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 37, &chesti); 
@@ -389,7 +370,7 @@ bool GetAllBones(uintptr_t CurrentActor) {
 // Simple Fov Fix lmao
 
 bool InFov(uintptr_t CurrentPawn, int FovValue) {
-	Vector3 HeadPos; SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentPawn, 66, &HeadPos); SDK::Classes::AController::WorldToScreen(HeadPos, &HeadPos);
+	Vector3 HeadPos; SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentPawn, 98, &HeadPos); SDK::Classes::AController::WorldToScreen(HeadPos, &HeadPos);
 	auto dx = HeadPos.x - (Renderer_Defines::Width / 2);
 	auto dy = HeadPos.y - (Renderer_Defines::Height / 2);
 	auto dist = sqrtf(dx * dx + dy * dy);
@@ -522,7 +503,7 @@ bool EntitiyLoop()
 				else if (strstr(name, xorstr("PlayerPawn"))) {
 					Vector3 HeadPos, Headbox, bottom;
 
-					SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 66, &HeadPos);
+					SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 98, &HeadPos);
 					SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 0, &bottom);
 
 					SDK::Classes::AController::WorldToScreen(Vector3(HeadPos.x, HeadPos.y, HeadPos.z + 20), &Headbox);
@@ -574,7 +555,7 @@ bool EntitiyLoop()
 
 					if (Settings::DistanceESP && SDK::Utils::CheckInScreen(CurrentActor, Renderer_Defines::Width, Renderer_Defines::Height)) {
 						Vector3 HeadNotW2SForDistance;
-						SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 66, &HeadNotW2SForDistance);
+						SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 98, &HeadNotW2SForDistance);
 						float distance = LocalRelativeLocation.Distance(HeadNotW2SForDistance) / 100.f;
 
 						std::string null = "";
@@ -597,39 +578,60 @@ bool EntitiyLoop()
 
 					if (Settings::NoSpread) {
 						if (!HookFunctions::NoSpreadInitialized) {
-							HookFunctions::Init(true, false);
+							HookFunctions::Init(true, false, false);
 						}
 					}
 
 					// bullettp / silent
 
-					if (Settings::Bullettp || Settings::SilentAim) {
+					if (Settings::SilentAim && !Settings::Bullettp) {
 						if (!HookFunctions::CalcShotInitialized) {
-							HookFunctions::Init(false, true);
+							HookFunctions::Init(false, true, false);
 						}
 
-						if (!Settings::fov360) {
-							auto dx = Headbox.x - (Renderer_Defines::Width / 2);
-							auto dy = Headbox.y - (Renderer_Defines::Height / 2);
-							auto dist = SpoofRuntime::sqrtf_(dx * dx + dy * dy);
+						Vector3 closestPawnviewPoint;
+						closestPawnVisible = SDK::Classes::APlayerCameraManager::LineOfSightTo((PVOID)PlayerController, (PVOID)closestPawn, &closestPawnviewPoint);
 
-							if (dist < Settings::FovCircle_Value && dist < closestDistance) {
+						auto dx = Headbox.x - (Renderer_Defines::Width / 2);
+						auto dy = Headbox.y - (Renderer_Defines::Height / 2);
+						auto dist = SpoofCall(SpoofRuntime::sqrtf_, dx * dx + dy * dy);
+
+						if (Settings::fov360) {
+							if (dist < closestDistance) {
 								closestDistance = dist;
 								closestPawn = (PVOID)CurrentActor;
 							}
 						}
 						else {
-							closestPawn = (PVOID)CurrentActor;
+							if (dist < Settings::FovCircle_Value && dist < closestDistance) {
+								closestDistance = dist;
+								closestPawn = (PVOID)CurrentActor;
+							}
+						}
+					}
+
+					if (Settings::Bullettp) {
+						if (!HookFunctions::CalcShotInitialized) {
+							HookFunctions::Init(false, true, false);
 						}
 
+						auto dx = Headbox.x - (Renderer_Defines::Width / 2);
+						auto dy = Headbox.y - (Renderer_Defines::Height / 2);
+						auto dist = SpoofCall(SpoofRuntime::sqrtf_, dx * dx + dy * dy);
 
+						if (Settings::fov360) {
+							if (dist < closestDistance) {
+								closestDistance = dist;
+								closestPawn = (PVOID)CurrentActor;
+							}
+						}
+						else {
+							if (dist < Settings::FovCircle_Value && dist < closestDistance) {
+								closestDistance = dist;
+								closestPawn = (PVOID)CurrentActor;
+							}
+						}
 					}
-					else if (Settings::Bullettp || Settings::SilentAim and !IsVisible) {
-						closestPawn = nullptr;
-					}
-
-				//	if (Settings::MouseAim and IsAiming() and (MyTeamIndex != EnemyTeamIndex)) {
-
 
 					if (Settings::Aim and IsAiming() and (MyTeamIndex != EnemyTeamIndex))
 					{
@@ -685,8 +687,30 @@ bool EntitiyLoop()
 						Settings::InstantRevive = false;
 					}
 
+					if (Settings::PlayerFly)
+					{
+						if (NiggerKeyState(VK_SHIFT))
+						{
+							write<float>(LocalPawn + 0x146d, 0.05f);
+						}
+						else {
+							write<float>(LocalPawn + 0x146d, 1.00f);
+						}
+					}
+
+
+					if (Settings::RapidFire) {
+
+						uintptr_t CurrentWeapon = *(uintptr_t*)(LocalPawn + StaticOffsets::CurrentWeapon);
+						if (CurrentWeapon) {
+							float a = read<float>(CurrentWeapon + StaticOffsets::LastFireTime);
+							float b = read<float>(CurrentWeapon + StaticOffsets::LastFireTimeVerified);
+							write<float>(CurrentWeapon + StaticOffsets::LastFireTime, (a + b - Settings::RapidFireValue));
+						}
+					}
+
 					if (Settings::AirStuck) {
-						if (NtGetAsyncKeyState(VK_MENU)) { //alt
+						if (NiggerKeyState(VK_MENU)) { //alt
 							write<float>(LocalPawn + 0x98, 0); // AActor->CustomTimeDilation
 						}
 						else {
@@ -713,7 +737,7 @@ bool EntitiyLoop()
 
 					Vector3 HeadPos, Headbox, bottom;
 
-					SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 66, &HeadPos);
+					SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 98, &HeadPos);
 					SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 0, &bottom);
 
 					SDK::Classes::AController::WorldToScreen(Vector3(HeadPos.x, HeadPos.y, HeadPos.z + 20), &Headbox);
@@ -792,7 +816,7 @@ bool EntitiyLoop()
 						Vector3 BottomNoW2S;
 						Vector3 HeadNoW2S;
 
-						SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 66, &HeadNoW2S);
+						SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 98, &HeadNoW2S);
 						SDK::Classes::USkeletalMeshComponent::GetBoneLocation(CurrentActor, 0, &BottomNoW2S);
 
 
@@ -892,19 +916,24 @@ bool EntitiyLoop()
 			
 		}
 
+		if (NiggerKeyState(VK_RBUTTON) and closestPawn) {
 
-		if (Settings::Bullettp || Settings::SilentAim) {
-			if (closestPawn && NtGetAsyncKeyState(VK_RBUTTON)) {
+			//Silent
+			if (Settings::SilentAim && !Settings::Bullettp and closestPawnVisible) {
 				TargetPawn = closestPawn;
 			}
-			else {
-				TargetPawn = nullptr;
+			else if (Settings::SilentAim and !closestPawnVisible) {
+				TargetPawn = 0;
+			}
+
+			//Bullettp
+			if (Settings::Bullettp) {
+				TargetPawn = closestPawn;
 			}
 		}
 		else {
-			TargetPawn = nullptr;
+			TargetPawn = 0;
 		}
-
 
 		if (!LocalPawn) return false;
 
@@ -985,11 +1014,6 @@ void ColorAndStyle() {
 	style->Colors[ImGuiCol_FrameBg] = ImColor(37, 38, 51, 255);
 	style->Colors[ImGuiCol_FrameBgHovered] = ImColor(42, 43, 56, 255);
 	style->Colors[ImGuiCol_FrameBgActive] = ImColor(37, 38, 51, 255);
-
-
-	//style->Colors[ImGuiCol_Tab] = ImColor(29, 28, 37, 255);
-	//style->Colors[ImGuiCol_TabActive] = ImColor(79, 79, 81, 255);
-	//style->Colors[ImGuiCol_TabHovered] = ImColor(62, 62, 66, 255);
 
 	style->Colors[ImGuiCol_TitleBg] = ImColor(27, 26, 35, 255);
 	style->Colors[ImGuiCol_TitleBgCollapsed] = ImColor(37, 38, 51, 40);
@@ -1233,23 +1257,12 @@ VOID MenuAndDestroy(ImGuiWindow& window) {
 			}
 			else if (maintabs == 2) {
 				ImGui::Text(xorstr("Mods"));
-				ImGui::Checkbox(xorstr("No Spread [RISK]"), &Settings::NoSpread);
-				ImGui::SameLine();
-				ImGui::TextColored(ImColor(255, 231, 94, 255), xorstr("[?]"));
-				if (ImGui::IsItemHovered()) {
-					ImGui::BeginTooltip();
-					ImGui::Text(xorstr("Makes your bullets not spread"));
-					ImGui::EndTooltip();
-				}
+				ImGui::Checkbox(xorstr("No Spread [BROKEN]"), &Settings::NoSpread);
+
 				ImGui::Checkbox(xorstr("Instant Revive"), &Settings::InstantRevive);
-				ImGui::SameLine();
-				ImGui::TextColored(ImColor(255, 231, 94, 255), xorstr("[?]"));
-				if (ImGui::IsItemHovered()) {
-					ImGui::BeginTooltip();
-					ImGui::Text(xorstr("You can instant revive your team"));
-					ImGui::EndTooltip();
-				}
-				
+
+				ImGui::Checkbox(xorstr("RapidFire"), &Settings::RapidFire);
+
 				ImGui::Checkbox(xorstr("Aim While Jumping"), &Settings::AimWhileJumping);
 
 				// bullettp
@@ -1260,6 +1273,9 @@ VOID MenuAndDestroy(ImGuiWindow& window) {
 				ImGui::Checkbox(xorstr("vehicle boost (speedhack) [SHIFT]##checkbox"), &Settings::Speed);
 				if (Settings::Speed) {
 					ImGui::SliderFloat(xorstr("speed hack value##slider"), &Settings::SpeedValue, 2.0, 100.0);
+				}
+				if (Settings::RapidFire) {
+					ImGui::SliderFloat(xorstr("RapidFire value##slider"), &Settings::RapidFireValue, 0.1, 1.0);
 				}
 
 			}
@@ -1392,8 +1408,8 @@ HRESULT present_hooked(IDXGISwapChain* swapChain, UINT syncInterval, UINT flags)
 		io.MousePos.y = p.y;
 
 
-		//MessageBoxA(NULL, "Before NtGetAsyncKeyState", "", MB_OK);
-		if (NtGetAsyncKeyState(VK_LBUTTON)) {
+		//MessageBoxA(NULL, "Before NiggerKeyState", "", MB_OK);
+		if (NiggerKeyState(VK_LBUTTON)) {
 			io.MouseDown[0] = true;
 			io.MouseClicked[0] = true;
 			io.MouseClickedPos[0].x = io.MousePos.x;
@@ -1407,8 +1423,8 @@ HRESULT present_hooked(IDXGISwapChain* swapChain, UINT syncInterval, UINT flags)
 	// Call this one here!
 	gaybow(window);
 	EntitiyLoop();
-	//MessageBoxA(NULL, "Before second NtGetAsyncKeyState", "", MB_OK);
-	if (NtGetAsyncKeyState(VK_INSERT) & 1)
+	//MessageBoxA(NULL, "Before second NiggerKeyState", "", MB_OK);
+	if (NiggerKeyState(VK_INSERT) & 1)
 	{
 		ShowMenu = !ShowMenu;
 	}
@@ -1448,90 +1464,104 @@ BOOL SpreadHook(PVOID a1, float* a2, float* a3)
 float* (*CalculateShot)(PVOID, PVOID, PVOID) = nullptr;
 
 float* CalculateShotHook(PVOID arg0, PVOID arg1, PVOID arg2) {
-	auto ret = CalculateShot(arg0, arg1, arg2);
+	auto ret = SpoofCall(CalculateShot, arg0, arg1, arg2);
 
-	//  Fixed Silent
-
-	if (ret && Settings::Bullettp || Settings::SilentAim && TargetPawn && LocalPawn)
+	if (ret && Settings::SilentAim && TargetPawn && LocalPawn)
 	{
-
 		Vector3 headvec3;
-		SDK::Classes::USkeletalMeshComponent::GetBoneLocation((uintptr_t)TargetPawn, 66, &headvec3);
-		SDK::Structs::FVector head = { headvec3.x, headvec3.y , headvec3.z };
+		SDK::Classes::USkeletalMeshComponent::GetBoneLocation((uintptr_t)TargetPawn, Settings::aimbone, &headvec3);
 
 		uintptr_t RootComp = read<uintptr_t>(LocalPawn + StaticOffsets::RootComponent);
 		Vector3 RootCompLocationvec3 = read<Vector3>(RootComp + StaticOffsets::RelativeLocation);
-		SDK::Structs::FVector RootCompLocation = { RootCompLocationvec3.x, RootCompLocationvec3.y , RootCompLocationvec3.z };
-		SDK::Structs::FVector* RootCompLocation_check = &RootCompLocation;
-		if (!RootCompLocation_check) return ret;
-		auto root = RootCompLocation;
 
-		auto dx = head.X - root.X;
-		auto dy = head.Y - root.Y;
-		auto dz = head.Z - root.Z;
+		Vector3* LocalPawnRelativeLocation_check = &RootCompLocationvec3;
+		if (!LocalPawnRelativeLocation_check) return ret;
 
-		if (Settings::Bullettp) {
-			ret[4] = head.X;
-			ret[5] = head.Y;
-			ret[6] = head.Z;
-			head.Z -= 16.0f;
-			root.Z += 45.0f;
+		auto dx = headvec3.x - RootCompLocationvec3.x;
+		auto dy = headvec3.y - RootCompLocationvec3.y;
+		auto dz = headvec3.z - RootCompLocationvec3.z;
+		if (dx * dx + dy * dy + dz * dz < 125000.0f) {
+			ret[4] = headvec3.x;
+			ret[5] = headvec3.y;
+			ret[6] = headvec3.z;
+		}
+		else {
+			headvec3.z -= 16.0f;
+			RootCompLocationvec3.z += 45.0f;
 
-			auto y = SpoofRuntime::atan2f_(head.Y - root.Y, head.X - root.X);
+			auto y = SpoofCall(atan2f, headvec3.y - RootCompLocationvec3.y, headvec3.x - RootCompLocationvec3.x);
 
-			root.X += SpoofRuntime::cosf_(y + 1.5708f) * 32.0f;
-			root.Y += SpoofRuntime::sinf_(y + 1.5708f) * 32.0f;
+			RootCompLocationvec3.x += SpoofCall(cosf, y + 1.5708f) * 32.0f;
+			RootCompLocationvec3.y += SpoofCall(sinf, y + 1.5708f) * 32.0f;
 
-			auto length = SpoofRuntime::sqrtf_(SpoofRuntime::powf_(head.X - root.X, 2) + SpoofRuntime::powf_(head.Y - root.Y, 2));
-			auto x = -SpoofRuntime::atan2f_(head.Z - root.Z, length);
-			y = SpoofRuntime::atan2f_(head.Y - root.Y, head.X - root.X);
+			auto length = SpoofCall(sqrtf, SpoofCall(powf, headvec3.x - RootCompLocationvec3.x, (float)2) + SpoofCall(powf, headvec3.y - RootCompLocationvec3.y, (float)2));
+			auto x = -SpoofCall(atan2f, headvec3.z - RootCompLocationvec3.z, length);
+			y = SpoofCall(atan2f, headvec3.y - RootCompLocationvec3.y, headvec3.x - RootCompLocationvec3.x);
 
 			x /= 2.0f;
 			y /= 2.0f;
 
-			ret[0] = -(SpoofRuntime::sinf_(x) * SpoofRuntime::sinf_(y));
-			ret[1] = SpoofRuntime::sinf_(x) * SpoofRuntime::cosf_(y);
-			ret[2] = SpoofRuntime::cosf_(x) * SpoofRuntime::sinf_(y);
-			ret[3] = SpoofRuntime::cosf_(x) * SpoofRuntime::cosf_(y);
-		}
-
-		if (Settings::SilentAim) {
-			if (dx * dx + dy * dy + dz * dz < 125000.0f) {
-				ret[4] = head.X;
-				ret[5] = head.Y;
-				ret[6] = head.Z;
-			}
-			else {
-				head.Z -= 16.0f;
-				root.Z += 45.0f;
-
-				auto y = SpoofRuntime::atan2f_(head.Y - root.Y, head.X - root.X);
-
-				root.X += SpoofRuntime::cosf_(y + 1.5708f) * 32.0f;
-				root.Y += SpoofRuntime::sinf_(y + 1.5708f) * 32.0f;
-
-				auto length = SpoofRuntime::sqrtf_(SpoofRuntime::powf_(head.X - root.X, 2) + SpoofRuntime::powf_(head.Y - root.Y, 2));
-				auto x = -SpoofRuntime::atan2f_(head.Z - root.Z, length);
-				y = SpoofRuntime::atan2f_(head.Y - root.Y, head.X - root.X);
-
-				x /= 2.0f;
-				y /= 2.0f;
-
-				ret[0] = -(SpoofRuntime::sinf_(x) * SpoofRuntime::sinf_(y));
-				ret[1] = SpoofRuntime::sinf_(x) * SpoofRuntime::cosf_(y);
-				ret[2] = SpoofRuntime::cosf_(x) * SpoofRuntime::sinf_(y);
-				ret[3] = SpoofRuntime::cosf_(x) * SpoofRuntime::cosf_(y);
-			}
+			ret[0] = -(SpoofCall(sinf, x) * SpoofCall(sinf, y));
+			ret[1] = SpoofCall(sinf, x) * SpoofCall(cosf, y);
+			ret[2] = SpoofCall(cosf, x) * SpoofCall(sinf, y);
+			ret[3] = SpoofCall(cosf, x) * SpoofCall(cosf, y);
 		}
 
 	}
 
+	if (ret && Settings::Bullettp && LocalPawn && TargetPawn) {
+
+		Vector3 headvec3;
+		SDK::Classes::USkeletalMeshComponent::GetBoneLocation((uintptr_t)TargetPawn, Settings::aimbone, &headvec3);
+
+		uintptr_t RootComp = read<uintptr_t>(LocalPawn + StaticOffsets::RootComponent);
+		Vector3 RootCompLocationvec3 = read<Vector3>(RootComp + StaticOffsets::RelativeLocation);
+
+		Vector3* LocalPawnRelativeLocation_check = &RootCompLocationvec3;
+		if (!LocalPawnRelativeLocation_check) return ret;
+
+
+		//head -= {15.0f, 15.0f, 15.0f};
+
+		auto y_tmp = SpoofCall(atan2f, headvec3.y - RootCompLocationvec3.y, headvec3.x - RootCompLocationvec3.x);
+
+		RootCompLocationvec3.x += SpoofCall(cosf, y_tmp + 1.5708f) * 32.0f;
+		RootCompLocationvec3.y += SpoofCall(sinf, y_tmp + 1.5708f) * 32.0f;
+		RootCompLocationvec3.z += 45.0f;
+
+		auto length = SpoofCall(sqrtf, SpoofCall(powf, headvec3.x - RootCompLocationvec3.x, (float)2) + SpoofCall(powf, headvec3.y - RootCompLocationvec3.y, (float)2));
+		Vector3 NewPos, headw2s;
+
+		NewPos.x = -SpoofCall(atan2f, headvec3.z - RootCompLocationvec3.z, length);
+		NewPos.y = SpoofCall(atan2f, headvec3.y - RootCompLocationvec3.y, headvec3.x - RootCompLocationvec3.x);
+		NewPos.z = 0;
+
+		NewPos.x /= 2.0f;
+		NewPos.y /= 2.0f;
+
+		ImVec2 HeadAfterEdit_W2S = SDK::Utils::WorldToScreen2(PlayerController, headvec3);
+
+		auto p_dx = HeadAfterEdit_W2S.x - (Renderer_Defines::Width / 2);
+		auto p_dy = HeadAfterEdit_W2S.y - (Renderer_Defines::Height / 2);
+		auto p_dist = SpoofCall(sqrtf, p_dx * p_dx + p_dy * p_dy);
+
+		if (p_dist < Settings::FovCircle_Value) {
+			ret[0] = -(SpoofCall(sinf, NewPos.x) * SpoofCall(sinf, NewPos.y));
+			ret[1] = SpoofCall(sinf, NewPos.x) * SpoofCall(cosf, NewPos.y);
+			ret[2] = SpoofCall(cosf, NewPos.x) * SpoofCall(sinf, NewPos.y);
+			ret[3] = SpoofCall(cosf, NewPos.x) * SpoofCall(cosf, NewPos.y);
+			ret[4] = headw2s.x;
+			ret[5] = headw2s.y;
+			ret[6] = headw2s.z;
+		}
+
+	}
 
 	return ret;
 }
 
 
-bool HookFunctions::Init(bool NoSpread, bool CalcShot) {
+bool HookFunctions::Init(bool NoSpread, bool CalcShot, bool Speed) {
 	if (!NoSpreadInitialized) {
 		if (NoSpread) {
 			auto SpreadAddr = MemoryHelper::PatternScan(xorstr("E8 ? ? ? ? 48 8D 4B 28 E8 ? ? ? ? 48 8B C8"));
@@ -1543,9 +1573,15 @@ bool HookFunctions::Init(bool NoSpread, bool CalcShot) {
 	}
 	if (!CalcShotInitialized) {
 		if (CalcShot) {
-			auto CalcShotAddr = MemoryHelper::PatternScan(xorstr("48 8B C4 48 89 58 18 55 56 57 41 54 41 55 41 56 41 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 0F 29 70 B8 0F 29 78 A8 44 0F 29 40 ? 44 0F 29 48 ? 44 0F 29 90 ? ? ? ? 44 0F 29 98 ? ? ? ? 44 0F 29 A0 ? ? ? ? 44 0F 29 A8 ? ? ? ? 48 8B 05 ? ? ? ? 48 33 C4 48 89 85 ? ? ? ? 48 8B F1"));
+			auto CalcShotAddr = MemoryHelper::PatternScan(xorstr("48 8B C4 48 89 58 18 55 56 57 41 54 41 55 41 56 41 57 48 8D A8 ? ? ? ? 48 81 EC ? ? ? ? 0F 29 70 B8 0F 29 78 A8 44 0F 29 40 ? 44 0F 29 48 ? 44 0F 29 90 ? ? ? ? 44 0F 29 98 ? ? ? ? 44 0F 29 A0 ? ? ? ? 44 0F 29 A8 ? ? ? ? 48 8B 05 ? ? ? ? 48 33 C4 48 89 85 ? ? ? ? 4C 8D A1 ? ? ? ?"));
 			HookHelper::InsertHook(CalcShotAddr, (uintptr_t)CalculateShotHook, (uintptr_t)&CalculateShot);
 			CalcShotInitialized = true;
+		}
+	}
+	if (!SpeedInitialized) {
+		if (Speed) {
+			Speed::InitSpeedHack();
+			SpeedInitialized = true;
 		}
 	}
 	return true;
@@ -1555,46 +1591,28 @@ bool HookFunctions::Init(bool NoSpread, bool CalcShot) {
 
 bool InitializeHack()
 {
-	//AllocConsole();
-	//freopen("CONIN$", "r", stdin);
-	//freopen("CONOUT$", "w", stderr);
-	//freopen("CONOUT$", "w", stdout);
-
+	if (!HookHelper::DiscordModule) {
+		MessageBoxA(NULL, "Enable discord overlay, try restarting discord as admin!", "Error", MB_OK);
+		exit(0);
+	}
 
 	Renderer_Defines::Width = LI_FN(GetSystemMetrics)(SM_CXSCREEN);
 	Renderer_Defines::Height = LI_FN(GetSystemMetrics)(SM_CYSCREEN);
-	UWorld = MemoryHelper::PatternScan("48 8B 05 ? ? ? ? 4D 8B C2");
+	UWorld = MemoryHelper::PatternScan("48 89 05 ? ? ? ? 48 8B 4B 78");
 	UWorld = RVA(UWorld, 7);
 
 	FreeFn = MemoryHelper::PatternScan(xorstr("48 85 C9 0F 84 ? ? ? ? 53 48 83 EC 20 48 89 7C 24 30 48 8B D9 48 8B 3D ? ? ? ? 48 85 FF 0F 84 ? ? ? ? 48 8B 07 4C 8B 40 30 48 8D 05 ? ? ? ? 4C 3B C0"));
-	ProjectWorldToScreen = MemoryHelper::PatternScan(xorstr("E8 ? ? ? ? 41 88 07 48 83 C4 30"));
+	ProjectWorldToScreen = MemoryHelper::PatternScan(xorstr("E8 ? ? ? ? 48 8B 5C 24 ? 41 88 07 48 83 C4 30"));
 	ProjectWorldToScreen = RVA(ProjectWorldToScreen, 5);
 
 
-	LineOfS = MemoryHelper::PatternScan(xorstr("E8 ? ? ? ? 48 8B 0D ? ? ? ? 33 D2 40 8A F8"));
-	LineOfS = RVA(LineOfS, 5);
+	LineOfS = MemoryHelper::PatternScan(xorstr("48 8B C4 48 89 58 20 55 56 57 41 54 41 55 41 56 41 57 48 8D 6C 24 ? 48 81 EC ? ? ? ? 0F 29 70 B8 0F 29 78 A8 44 0F 29 40 ? 48 8B 05 ? ? ? ? 48 33 C4 48 89 45 20 45 8A E9"));
 
-	GetNameByIndex = MemoryHelper::PatternScan(xorstr("48 89 5C 24 ? 48 89 74 24 ? 55 57 41 56 48 8D AC 24 ? ? ? ? 48 81 EC ? ? ? ? 48 8B 05 ? ? ? ? 48 33 C4 48 89 85 ? ? ? ? 45 33 F6 48 8B F2 44 39 71 04 0F 85 ? ? ? ? 8B 19 0F B7 FB E8 ? ? ? ? 8B CB 48 8D 54 24"));
+	GetNameByIndex = MemoryHelper::PatternScan(xorstr("48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 56 48 81 EC ? ? ? ? 48 8B 05 ? ? ? ? 48 33 C4 48 89 84 24 ? ? ? ? 48 8B F2 4C 8B F1 E8 ? ? ? ? 45 8B 06 33 ED 41 0F B7 16 41 C1 E8 10 89 54 24 24 44 89 44 24 ? 48 8B 4C 24 ? 48 C1 E9 20 8D 3C 09 4A 03 7C C0 ? 0F B7 17 C1 EA 06 41 39 6E 04"));
 	BoneMatrix = MemoryHelper::PatternScan(xorstr("E8 ? ? ? ? 48 8B 47 30 F3 0F 10 45"));
 	BoneMatrix = RVA(BoneMatrix, 5);
 
-
-
-	//auto SpreadAddr = MemoryHelper::PatternScan(xorstr("E8 ? ? ? ? 48 8D 4B 28 E8 ? ? ? ? 48 8B C8"));
-	//SpreadAddr = RVA(SpreadAddr, 5);
-	//HookHelper::InsertHook(SpreadAddr, (uintptr_t)SpreadHook, (uintptr_t)&Spread);
-	//SpreadCaller = (PVOID)(MemoryHelper::PatternScan(xorstr("0F 57 D2 48 8D 4C 24 ? 41 0F 28 CC E8 ? ? ? ? 48 8B 4D B0 0F 28 F0 48 85 C9")));
-	
-
-	// CalculateShot
-	//auto CalcShotAddr = MemoryHelper::PatternScan(xorstr("48 8B C4 48 89 58 18 55 56 57 41 54 41 55 41 56 41 57 48 8D A8 48 FE ? ? 48 81 EC ? ? ? ? 0F 29 70 B8 0F 29 78 A8 44 0F 29 40 ? 44 0F 29 48 ? 44 0F 29 90 ? ? ? ? 44 0F 29 98 ? ? ? ? 44 0F 29 A0 ? ? ?"));
-	//HookHelper::InsertHook(CalcShotAddr, (uintptr_t)CalculateShotHook, (uintptr_t)&CalculateShot);
-
-
-
-
-
-	NtGetAsyncKeyState = (LPFN_MBA)LI_FN(GetProcAddress)(LI_FN(GetModuleHandleA)(xorstr("win32u.dll")), xorstr("NtUserGetAsyncKeyState"));
+	NiggerKeyState = (LPFN_MBA)LI_FN(GetProcAddress)(LI_FN(GetModuleHandleA)(xorstr("win32u.dll")), xorstr("NtUserGetAsyncKeyState"));
 
 
 	auto level = D3D_FEATURE_LEVEL_11_0;
@@ -1632,9 +1650,6 @@ bool InitializeHack()
 	LI_FN(VirtualProtect)(swap_chainvtable, 0x1000, PAGE_EXECUTE_READWRITE, &old_protect_resize);
 	swap_chainvtable[13] = reinterpret_cast<DWORD_PTR>(resize_hooked);
 	LI_FN(VirtualProtect)(swap_chainvtable, 0x1000, old_protect_resize, &old_protect_resize);
-	
-	// Call this here or somewhere else!
-	Gay();
 	return true;
 }
 
