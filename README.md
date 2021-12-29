@@ -1,7 +1,5 @@
-# Updating!
-
-# Fortnite-Bulletp-Internal
-A working vehicle Bullettp internal, will be always updated to latest fn update!
+# Fortnite-Bulletp-Internal - Updated to Chapter 3
+A working vehicle Bullettp internal, should be fully updated (not fully tested), dm me if problems NotSimcraftLOL#5175!
 
 my old github got termed LMAO
 
