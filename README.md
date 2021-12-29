@@ -1,4 +1,4 @@
-Posting update in few mins!
+# Updating!
 
 # Fortnite-Bulletp-Internal
 A working vehicle Bullettp internal, will be always updated to latest fn update!
