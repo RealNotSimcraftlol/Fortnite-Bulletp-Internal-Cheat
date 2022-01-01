@@ -5,6 +5,9 @@ my old github got termed LMAO
 
 # If i see you selling this, i make you famous (in a bad way)
 
+Changes:
+Added FOV Changer
+
 ## Current working features:
 
 > Aimbot
@@ -30,6 +33,7 @@ my old github got termed LMAO
  - Aim While Jumping
  - Vehicle BulletTP
  - Vehicle Boost (Speedhack)
+ - FOV Changer
 
 > Misc
 
@@ -38,6 +42,6 @@ my old github got termed LMAO
  - Rainbow Mode (rgb visuals)
 
 
-Added Carfly and FOV Changer soon
+Adding Carfly, teleport and more soon
 
 need help dm me! NotSimcraftLOL#5175
