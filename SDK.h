@@ -1102,3 +1102,271 @@ namespace HookHelper {
 
 }
 
+template<class T>
+struct TArray
+{
+	friend struct FString;
+
+public:
+	inline TArray()
+	{
+		Data = nullptr;
+		Count = Max = 0;
+	};
+
+	inline int Num() const
+	{
+		return Count;
+	};
+
+	inline T& operator[](int i)
+	{
+		return Data[i];
+	};
+
+	inline const T& operator[](int i) const
+	{
+		return Data[i];
+	};
+
+	inline bool IsValidIndex(int i) const
+	{
+		return i < Num();
+	}
+
+private:
+	T* Data;
+	int32_t Count;
+	int32_t Max;
+};
+
+struct FString : private TArray<wchar_t>
+{
+	inline FString()
+	{
+	};
+
+	FString(const wchar_t* other)
+	{
+		Max = Count = *other ? SpoofCall(std::wcslen, other) + 1 : 0;
+
+		if (Count)
+		{
+			Data = const_cast<wchar_t*>(other);
+		}
+	};
+
+	inline bool IsValid() const
+	{
+		return Data != nullptr;
+	}
+
+	inline const wchar_t* c_str() const
+	{
+		return Data;
+	}
+
+	std::string ToString() const
+	{
+		auto length = std::wcslen(Data);
+
+		std::string str(length, '\0');
+
+		std::use_facet<std::ctype<wchar_t>>(std::locale()).narrow(Data, Data + length, '?', &str[0]);
+
+		return str;
+	}
+};
+
+class UClass {
+public:
+	BYTE _padding_0[0x40];
+	UClass* SuperClass;
+};
+
+class UObject {
+public:
+	PVOID VTableObject;
+	DWORD ObjectFlags;
+	DWORD InternalIndex;
+	UClass* Class;
+	BYTE _padding_0[0x8];
+	UObject* Outer;
+
+	inline BOOLEAN IsA(PVOID parentClass) {
+		for (auto super = this->Class; super; super = super->SuperClass) {
+			if (super == parentClass) {
+				return TRUE;
+			}
+		}
+
+		return FALSE;
+	}
+};
+
+class FUObjectItem {
+public:
+	UObject* Object;
+	DWORD Flags;
+	DWORD ClusterIndex;
+	DWORD SerialNumber;
+	DWORD SerialNumber2;
+};
+
+class TUObjectArray {
+public:
+	FUObjectItem* Objects[9];
+};
+
+class GObjects {
+public:
+	TUObjectArray* ObjectArray;
+	BYTE _padding_0[0xC];
+	DWORD ObjectCount;
+};
+
+namespace StructsParams {
+
+	struct AActor_K2_TeleportTo_Params
+	{
+		Vector3										DestLocation;                                             // (Parm, ZeroConstructor, IsPlainOldData)
+		Vector3										DestRotation;                                             // (Parm, ZeroConstructor, IsPlainOldData)
+		bool										ReturnValue;                                              // (Parm, OutParm, ZeroConstructor, ReturnParm, IsPlainOldData)
+	};
+}
+
+BOOL IsValidPointer(uintptr_t address)
+{
+	if (!SpoofCall(IsBadWritePtr, (LPVOID)address, (UINT_PTR)8)) return TRUE;
+	else return FALSE;
+}
+
+namespace FN {
+
+	static GObjects* objects = nullptr;
+
+	static void FreeFN(__int64 address)
+	{
+		auto func = reinterpret_cast<__int64(__fastcall*)(__int64 a1)>(FreeFn);
+
+		SpoofCall(func, address);
+	}
+
+	static const char* GetObjectName(uintptr_t Object)
+	{
+		if (Object == NULL)
+			return ("");
+
+		auto fGetObjName = reinterpret_cast<FString * (__fastcall*)(int* index, FString * res)>(GetNameByIndex);
+
+		int index = *(int*)(Object + 0x18);
+
+		FString result;
+		SpoofCall(fGetObjName, &index, &result);
+
+		if (result.c_str() == NULL)
+			return ("");
+
+		auto result_str = result.ToString();
+
+		if (result.c_str() != NULL)
+			FreeFN((__int64)result.c_str());
+
+		return result_str.c_str();
+	}
+
+
+	static const char* GetUObjectNameLoop(UObject* Object) {
+		std::string name("");
+
+		for (auto i = 0; Object; Object = Object->Outer, ++i) {
+
+			auto fGetObjName = reinterpret_cast<FString * (__fastcall*)(int* index, FString * res)>(GetNameByIndex);
+
+			int index = *(int*)(reinterpret_cast<uint64_t>(Object) + 0x18);
+
+			FString internalName;
+			SpoofCall(fGetObjName, &index, &internalName);
+
+			if (internalName.c_str() == NULL) {
+				break;
+			}
+
+			auto objectName = internalName.ToString();
+
+
+			name = objectName.c_str() + std::string(i > 0 ? xorstr(".") : xorstr("")) + name;
+			FreeFN((__int64)internalName.c_str());
+		}
+
+		return name.c_str();
+	}
+
+	static PVOID FindObject(const char* name) {
+
+		for (auto array : objects->ObjectArray->Objects) {
+			auto fuObject = array;
+			std::cout << "";
+			for (auto i = 0; i < 0x10000 && fuObject->Object; ++i, ++fuObject)
+			{
+				std::cout << "";
+				auto object = fuObject->Object;
+
+				if (object->ObjectFlags != 0x41) {
+					continue;
+				}
+				std::cout << "";
+
+				if (strstr(GetUObjectNameLoop(object), name)) {
+					return object;
+				}
+			}
+		}
+
+		return 0;
+	}
+
+	static PVOID FindObject2(const char* name, const char* name2) {
+
+		for (auto array : objects->ObjectArray->Objects) {
+			auto fuObject = array;
+			std::cout << "";
+			for (auto i = 0; i < 0x10000 && fuObject->Object; ++i, ++fuObject)
+			{
+				std::cout << "";
+				auto object = fuObject->Object;
+
+				if (object->ObjectFlags != 0x41) {
+					continue;
+				}
+				std::cout << "";
+
+				if ((strstr(GetUObjectNameLoop(object), name)) and (strstr(GetUObjectNameLoop(object), name2))) {
+					return object;
+				}
+			}
+		}
+
+		return 0;
+	}
+
+
+	static BOOL ProcessEvent(uintptr_t address, void* fnobject, void* parms)
+	{
+		if (!valid_pointer(address)) return FALSE;
+		auto index = *reinterpret_cast<void***>(address); if (!index) return FALSE;
+		auto fProcessEvent = static_cast<void(*)(void* address, void* fnobject, void* parms)>(index[0x4B]); if (!fProcessEvent) return FALSE;
+		SpoofCall(fProcessEvent, (void*)address, (void*)fnobject, (void*)parms);
+		return TRUE;
+	}
+}
+
+namespace ObjectsAddresses {
+	static PVOID FOV;
+}
+
+BOOL FOV(uintptr_t playercontroller, float NewFOV) {
+	if (!IsValidPointer((uintptr_t)playercontroller)) return 0;
+	FN::ProcessEvent((uintptr_t)playercontroller, ObjectsAddresses::FOV, &NewFOV);
+	return TRUE;
+}

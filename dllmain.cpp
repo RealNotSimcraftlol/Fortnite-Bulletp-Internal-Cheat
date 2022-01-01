@@ -9,10 +9,13 @@ static LPFN_MBA NiggerKeyState;
 // Updated to Chapter 3
 // Added Better SpeedHack
 // Added Better SilentAim and Bulletp
+// Added FOVChanger
+// Adding Carfly and teleport and more soon
 
 bool ShowMenu = true;
 
 int Menu_AimBoneInt = 0;
+
 
 static const char* AimBone_TypeItems[]{
 	"   Head",
@@ -575,6 +578,9 @@ bool EntitiyLoop()
 
 					}
 
+					if (Settings::FOVChanger) {
+						FOV(PlayerController, Settings::FOV);
+					}
 
 					if (Settings::NoSpread) {
 						if (!HookFunctions::NoSpreadInitialized) {
@@ -1265,6 +1271,10 @@ VOID MenuAndDestroy(ImGuiWindow& window) {
 
 				ImGui::Checkbox(xorstr("Aim While Jumping"), &Settings::AimWhileJumping);
 
+				// FOV Changer
+
+				ImGui::Checkbox(xorstr("FOVChanger"), &Settings::FOVChanger);
+
 				// bullettp
 				ImGui::Checkbox(xorstr("BulletTP [Only in vehicle!]"), &Settings::Bullettp);
 
@@ -1272,10 +1282,13 @@ VOID MenuAndDestroy(ImGuiWindow& window) {
 
 				ImGui::Checkbox(xorstr("vehicle boost (speedhack) [SHIFT]##checkbox"), &Settings::Speed);
 				if (Settings::Speed) {
-					ImGui::SliderFloat(xorstr("speed hack value##slider"), &Settings::SpeedValue, 2.0, 100.0);
+					ImGui::SliderFloat(xorstr("speed hack value"), &Settings::SpeedValue, 2.0, 100.0);
 				}
 				if (Settings::RapidFire) {
-					ImGui::SliderFloat(xorstr("RapidFire value##slider"), &Settings::RapidFireValue, 0.1, 1.0);
+					ImGui::SliderFloat(xorstr("RapidFire value"), &Settings::RapidFireValue, 0.1, 1.0);
+				}
+				if (Settings::FOVChanger) {
+					ImGui::SliderFloat(xorstr("FOVChanger FOV"), &Settings::FOV, 20, 150);
 				}
 
 			}
@@ -1605,15 +1618,18 @@ bool InitializeHack()
 	ProjectWorldToScreen = MemoryHelper::PatternScan(xorstr("E8 ? ? ? ? 48 8B 5C 24 ? 41 88 07 48 83 C4 30"));
 	ProjectWorldToScreen = RVA(ProjectWorldToScreen, 5);
 
-
 	LineOfS = MemoryHelper::PatternScan(xorstr("48 8B C4 48 89 58 20 55 56 57 41 54 41 55 41 56 41 57 48 8D 6C 24 ? 48 81 EC ? ? ? ? 0F 29 70 B8 0F 29 78 A8 44 0F 29 40 ? 48 8B 05 ? ? ? ? 48 33 C4 48 89 45 20 45 8A E9"));
 
 	GetNameByIndex = MemoryHelper::PatternScan(xorstr("48 89 5C 24 ? 48 89 6C 24 ? 56 57 41 56 48 81 EC ? ? ? ? 48 8B 05 ? ? ? ? 48 33 C4 48 89 84 24 ? ? ? ? 48 8B F2 4C 8B F1 E8 ? ? ? ? 45 8B 06 33 ED 41 0F B7 16 41 C1 E8 10 89 54 24 24 44 89 44 24 ? 48 8B 4C 24 ? 48 C1 E9 20 8D 3C 09 4A 03 7C C0 ? 0F B7 17 C1 EA 06 41 39 6E 04"));
 	BoneMatrix = MemoryHelper::PatternScan(xorstr("E8 ? ? ? ? 48 8B 47 30 F3 0F 10 45"));
 	BoneMatrix = RVA(BoneMatrix, 5);
 
-	NiggerKeyState = (LPFN_MBA)LI_FN(GetProcAddress)(LI_FN(GetModuleHandleA)(xorstr("win32u.dll")), xorstr("NtUserGetAsyncKeyState"));
+	auto UObjectPtr = MemoryHelper::PatternScan(xorstr("48 8B 05 ? ? ? ? 48 8B 0C C8 48 8B 04 D1")); //Gobject
+	FN::objects = decltype(FN::objects)(RVA(UObjectPtr, 7));
 
+	ObjectsAddresses::FOV = SpoofCall(FN::FindObject, (const char*)xorstr("FOV"));
+
+	NiggerKeyState = (LPFN_MBA)LI_FN(GetProcAddress)(LI_FN(GetModuleHandleA)(xorstr("win32u.dll")), xorstr("NtUserGetAsyncKeyState"));
 
 	auto level = D3D_FEATURE_LEVEL_11_0;
 	DXGI_SWAP_CHAIN_DESC sd;

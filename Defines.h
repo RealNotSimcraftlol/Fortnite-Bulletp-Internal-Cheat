@@ -50,6 +50,8 @@ namespace Settings
 	static bool fov360 = 0;
 	static bool FirstCamera = 0;
 	static bool PlayerFly = 0;
+	static bool FOVChanger = 0;
+	static float FOV = 88.0f;
 
 	//Misc
 	static bool Gaybow = 1;
