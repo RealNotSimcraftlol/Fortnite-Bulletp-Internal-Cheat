@@ -3,10 +3,9 @@ A working vehicle Bullettp internal, should be fully updated (not fully tested),
 
 my old github got termed LMAO
 
-# If i see you selling this, i make you famous (in a bad way)
+Added FOV Changer!
 
-Changes:
-Added FOV Changer
+# If i see you selling this, i make you famous (in a bad way)
 
 ## Current working features:
 
