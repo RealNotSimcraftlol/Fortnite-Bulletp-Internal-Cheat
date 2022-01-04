@@ -1,6 +1,8 @@
 # Fortnite-Bulletp-Internal - Updated to Chapter 3
 A working vehicle Bullettp internal, should be fully updated (not fully tested), dm me if problems NotSimcraftLOL#5175!
 
+Make sure project is set on Release X64 and DirectX11 sdk is installed, give star if you guys wants car teleport
+
 my old github got termed LMAO
 
 Added FOV Changer!
